@@ -16,16 +16,16 @@ int main()
 	{
 		char ObjectText[0x200] = { 0 };
 		UINT64 Id;
-		printf("请输入要查询的Id：");
+		printf("Please enter the Id to query: ");
 		scanf_s("%p", &Id);
-		printf("输入的Id：%p\n", Id);
+		printf("Entered Id: %p\n", Id);
 
 		Dumper.GetName(Id, ObjectText, sizeof(ObjectText));
 
-		printf("对象名：%s\n", ObjectText);
+		printf("Object Name: %s\n", ObjectText);
 
 		UINT64 Object = Dumper.GetObjectById(Id);
-		printf("对象地址：%p\n", Object);
+		printf("Object Address: %p\n", Object);
 
 	}
 

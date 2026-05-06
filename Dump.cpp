@@ -225,27 +225,27 @@ UINT64 Dump::GetModouleBaseAddress(HANDLE Pid, string ModuleName)
     HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, (DWORD)Pid);
 	if (hSnapshot == INVALID_HANDLE_VALUE)
 	{
-		printf("��������ʧ�ܣ������룺%d\n", GetLastError());
+		printf("Error code: %d", GetLastError());
 		return 0;
 	}
 
 	MODULEENTRY32 moduleEntry;
-	moduleEntry.dwSize = sizeof(MODULEENTRY32); // �����ʼ���ṹ���С��
+	moduleEntry.dwSize = sizeof(MODULEENTRY32); // Initialize structure size
 
 
-	// ������һ��ģ��
+	// Get the first module
 	if (Module32First(hSnapshot, &moduleEntry))
 	{
 		do
 		{
-			// �����ִ�Сдƥ��ģ����
+			// Case-insensitive string match of module name
 			if (_stricmp(moduleEntry.szModule, ModuleName.c_str()) == 0)
 			{
-				// �ҵ�Ŀ��ģ�飬��ȡ����ַ
+				// Found target module, get base address
 				BaseAddr = (uintptr_t)moduleEntry.modBaseAddr;
 				break;
 			}
-		} while (Module32Next(hSnapshot, &moduleEntry)); // ��������ģ��
+		} while (Module32Next(hSnapshot, &moduleEntry)); // Continue traversing modules
 	}
 
 	CloseHandle(hSnapshot);
@@ -301,7 +301,7 @@ BOOLEAN Dump::FileterObjects(UINT64 Object)
 	if (Object == 0)
 		return FALSE;
 
-	//���ҵ�Class�Ļ����ַ�����е�Class���󶼼̳���CoreUObject.Class
+	// Found Class\'s base string, all Class objects inherit from CoreUObject.Class
 	static UINT64 ObjectClassStr = GetObjectByName("Class	 CoreUObject.Class");
 
 	for (UINT64 ObjectClass = GetObjectClass(Object);
@@ -310,7 +310,8 @@ BOOLEAN Dump::FileterObjects(UINT64 Object)
 	{
 		if (ObjectClass == ObjectClassStr)
 		{
-			//���Class�Ļ����ַ����Object�̳У��������ǵ�Ŀ�����?			return TRUE;
+			// Inherits from Class, indicating this is our target object
+					return TRUE;
 		}
 
 	}
@@ -397,11 +398,11 @@ std::string GetValidClassName(const std::string& ClassName) {
 	return "U" + ClassName;
 }
 
-// 核心升级1：通过传递Property（属性对象的内存地址），我们可以读取到该属性内部的深层信息
-// 比如TArray内部存储的真正类型、Bool的位域掩码等，从而解析出完整的泛型嵌套类型
+// Core Upgrade 1: By passing the Property pointer (memory address of property object), we can read deep inner information.
+// For example, the real type stored inside an Array, the bit-field mask of a Bool, etc., thereby parsing the complete generic nested type.
 string Dump::GetEnumByCastFlag(UINT64 Property, UINT64 PropertiesObjectCastFlag)
 {
-	// 核心升级2：将Unreal引擎内部的EClassCastFlags精确映射到C++的基础数据类型
+	// Core Upgrade 2: Precisely map EClassCastFlags inside Unreal Engine to basic C++ data types.
 	if (PropertiesObjectCastFlag & (UINT64)EClassCastFlags::Int8Property) return "int8";
 	if (PropertiesObjectCastFlag & (UINT64)EClassCastFlags::ByteProperty) return "uint8";
 	if (PropertiesObjectCastFlag & (UINT64)EClassCastFlags::Int16Property) return "int16";
@@ -414,15 +415,15 @@ string Dump::GetEnumByCastFlag(UINT64 Property, UINT64 PropertiesObjectCastFlag)
 	if (PropertiesObjectCastFlag & (UINT64)EClassCastFlags::DoubleProperty) return "double";
 	if (PropertiesObjectCastFlag & (UINT64)EClassCastFlags::BoolProperty)
 	{
-		// 核心升级6：Bool类型进阶解析，通过读取0x7B偏移处的FieldMask，探测是否为位域(Bit-Field)
-		// 如果FieldMask不是全FF或0，说明它是一个像 uint8 bFlag : 1; 这样的位掩码，输出uint8，否则输出bool
+		// Core Upgrade 6: Advanced Boolean Parsing. Read the FieldMask at offset 0x7B to check if it is a bit-field.
+		// If FieldMask is not all FF or 0, it means it is a bitmask like uint8 bFlag : 1;, output uint8, otherwise output bool.
 		uint8 FieldMask = ReadBySystem<uint8>(ProcessHandle, Property + Offsets::UObject::FField::BoolOrUint8Mask);
 		if (FieldMask != 0xFF && FieldMask != 0)
 			return "uint8";
 		return "bool";
 	}
 	
-	// 核心升级3：处理UE字符串类型，自动补充 "class " 前缀，以保持和Dumper-7的输出格式一致
+	// Core Upgrade 3: Handle UE string types, automatically inject "class " prefix to keep output format consistent with Dumper-7.
 	if (PropertiesObjectCastFlag & (UINT64)EClassCastFlags::NameProperty) return "class FName";
 	if (PropertiesObjectCastFlag & (UINT64)EClassCastFlags::StrProperty) return "class FString";
 	if (PropertiesObjectCastFlag & (UINT64)EClassCastFlags::TextProperty) return "class FText";
@@ -441,9 +442,9 @@ string Dump::GetEnumByCastFlag(UINT64 Property, UINT64 PropertiesObjectCastFlag)
 		return "struct FStruct";
 	}
 
-	// 核心升级5：提取对象与类的指针类型，利用上面的 GetValidClassName 函数
-	// 为Actors/Pawns/GameModes等自动加 'A' 前缀，其余加 'U' 前缀。
-	// 并且对于 ClassProperty 能够使用 TSubclassOf 进行泛型包裹，完美还原类的原型
+	// Core Upgrade 5: Extract pointer types for objects and classes utilizing GetValidClassName.
+	// Automatically add prefix \'A\' for Actors/Pawns/GameModes, and \'U\' for the rest.
+	// Additionally, it can use TSubclassOf for ClassProperty generic wrapping, perfectly restoring the original class archetype.
 	if (PropertiesObjectCastFlag & (UINT64)EClassCastFlags::ClassProperty) {
 		UINT64 MetaClass = ReadBySystem<UINT64>(ProcessHandle, Property + Offsets::UObject::FField::EnumProperty + 8);
 		string ClassName = GetNameByObject(MetaClass);
@@ -490,9 +491,9 @@ string Dump::GetEnumByCastFlag(UINT64 Property, UINT64 PropertiesObjectCastFlag)
 	if (PropertiesObjectCastFlag & (UINT64)EClassCastFlags::FieldPathProperty) return "TFieldPath";
 	if (PropertiesObjectCastFlag & (UINT64)EClassCastFlags::OptionalProperty) return "TOptional";
 
-	// 核心升级4：泛型容器解析区块（TArray/TMap/TSet）
-	// 通过读取 Property+0x78 (EnumProperty偏移) 拿到容器内部属性的指针
-	// 再递归执行 GetEnumByCastFlag 获取内部对象类型（InnerType）最终组装成如 TArray<T> 样式
+	// Core Upgrade 4: Generic container parsing block (TArray/TMap/TSet).
+	// By reading Property+0x78 (EnumProperty offset), we can get the pointer to the inner property of the container.
+	// Then recursively execute GetEnumByCastFlag to get the inner object type (InnerType) and assemble it into formats like TArray<T>.
 	if (PropertiesObjectCastFlag & (UINT64)EClassCastFlags::ArrayProperty) {
 		UINT64 InnerType = ReadBySystem<UINT64>(ProcessHandle, Property + Offsets::UObject::FField::EnumProperty);
 		if (InnerType) {
@@ -544,8 +545,8 @@ VOID Dump::DumpClass(UINT64 Object)
 		return;
 	}
 
-	// DumpClass的类序列化结构输出。它通过遍历 ChildProperties 链表获取所有成员
-	// 并调用 GetEnumByCastFlag (上述高级的深层探测逻辑) 为新一代结构化Dump奠定了基础
+	// Serialization structure output for DumpClass. It iterates through the ChildProperties linked list to get all members,
+	// and calls GetEnumByCastFlag (the advanced deep probing logic above) to lay the foundation for a new generation of structured Dump.
 	string OutputStr = "Object:[" + to_hex(Object) + "] Id:[" + to_hex(ID) + "]\n" + GetNameByObject(GetObjectClass(Object)) + " " + GetNameByObject(Object);
 	UINT64 SuperStructObject = GetSuperStruct(Object);
 	if (SuperStructObject)

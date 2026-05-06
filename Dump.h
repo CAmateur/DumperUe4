@@ -41,8 +41,8 @@ public:
 	
     UINT64 GetObjectClass(UINT64 Object);
 
-	//�������������Ĵ�·���Ķ��������� "Engine.World.PersistentLevel.MyActor"��
-	//ͨ������������ǿ���֪��world˳��ƫ���ҵ�������Ҫ�����ݳ�Ա
+	// By doing this we can map out the full path of the object, like "Engine.World.PersistentLevel.MyActor".
+	// Through this we can find the offsets related to World down to the target data members.
 	UINT64 GetOuterPrivate(UINT64 Object);
 
 	UINT64 GetSuperStruct(UINT64 Object);
@@ -72,8 +72,8 @@ public:
 	template <typename T>
 	std::string to_hex(T num) {
 		std::stringstream ss;
-		ss << "0x" << std::hex << std::uppercase << num; // ��д+0xǰ׺
-		// Сд��ȥ�� std::uppercase �� ss << "0x" << std::hex << num;
+		ss << "0x" << std::hex << std::uppercase << num; // Uppercase + 0x prefix
+		// For lowercase, remove std::uppercase: ss << "0x" << std::hex << num;
 		return ss.str();
 	}
 

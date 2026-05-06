@@ -14,19 +14,19 @@ int main()
 	UINT64 Id = 0x1520E;
 	//UINT64 Id = 0x001E475;
 	Dumper.GetName(Id, ObjectText, sizeof(ObjectText));
-	printf("通过Id找到的对象名称：%s\n", ObjectText);
+	printf("Object name found by Id: %s\n", ObjectText);
 
 	UINT64 Object = Dumper.GetObjectById(Id);
-	printf("通过Id找到的对象：%p\n", Object);
+	printf("Object found by Id: %p\n", Object);
 
 	string ObjectTypeStr = Dumper.GetNameByObject(Dumper.GetObjectClass(Object));
-	printf("对象类型为：%s\n", ObjectTypeStr.c_str());
+	printf("Object type is: %s\n", ObjectTypeStr.c_str());
 
 	string OuterPrivateObjectStr = Dumper.GetNameByObject(Dumper.GetOuterPrivate(Object));
-	printf("通过OuterPrivate找到的对象：%s\n", OuterPrivateObjectStr.c_str());
+	printf("Object found by OuterPrivate: %s\n", OuterPrivateObjectStr.c_str());
 
 	string SuperStructObjectStr = Dumper.GetNameByObject(Dumper.GetSuperStruct(Object));
-	printf("通过SuperStruct找到的对象：%s\n", SuperStructObjectStr.c_str());	
+	printf("Object found by SuperStruct: %s\n", SuperStructObjectStr.c_str());	
 
 	UINT64 ChildProperties = Dumper.GetChildProperties(Object);
 	for (size_t i = 0; ChildProperties; i++)

@@ -91,15 +91,15 @@ namespace Offsets
 	{
 		constexpr uint64 Class = 0x10;
 		constexpr uint64 SuperStruct = 0x40;
-		constexpr uint64 Name = 0x18; //通过这个偏移可以找到对象的Id，配合GetName函数可以找到对象的名称
-		constexpr uint64 Size = 0x18; //这个需要根据实际情况调整，Size是对象在GObjects中的大小，GObjects是一个数组，每个元素的大小就是Size，通过这个Size可以找到下一个对象的地址
+		constexpr uint64 Name = 0x18; // Through this offset you can find the object's Id, which can be used with GetName to find the object's name
+		constexpr uint64 Size = 0x18; // This needs adjustment based on the actual situation. Size is the element size in GObjects array. Use it to find the next object's address.
 
-		// 通过这个偏移可以找到对象的OuterPrivate，OuterPrivate是一个对象，
-		// 通过这个对象的Id和GetName函数可以找到OuterPrivate的名称，
-		// OuterPrivate的OuterPrivate也是一个对象，通过这个对象的Id和GetName函数可以找到这个对象的名称，
-		// 直到OuterPrivate为0为止，这样就可以生成完整的带路径的对象名（如 "Engine.World.PersistentLevel.MyActor"）
+		// Through this offset you can find the object's OuterPrivate, which is an object itself.
+		// By using its Id and GetName function, you can find the name of OuterPrivate.
+		// Its OuterPrivate is also an object, and you can repeat this process
+		// until OuterPrivate is 0. This forms the complete path-qualified object name (e.g. "Engine.World.PersistentLevel.MyActor")
 		constexpr uint64 Outer = 0x20;
-		constexpr uint64 ChildProperties = 0x50; //ChildProperties 的类型是FField，FField是一个链表结构，+0x20处为下一个数据成员的地址，+0x28处为数据成员的类型类地址，+0x40处为数据成员的大小
+		constexpr uint64 ChildProperties = 0x50; // The type of ChildProperties is FField, which is a linked list. +0x20 points to the next data member, +0x28 is the FFieldClass type address, and +0x40 contains data member properties.
 		namespace FField
 		{
 			constexpr uint64 Class = 0x8;

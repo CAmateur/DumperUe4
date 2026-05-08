@@ -11,7 +11,7 @@ int main()
 		printf("Dumper Init Faild %d\n", Result);
 
 	char ObjectText[0x200] = { 0 };
-	UINT64 Id = 0x1520E;
+	UINT64 Id = 0x4E35A;
 	//UINT64 Id = 0x001E475;
 	Dumper.GetName(Id, ObjectText, sizeof(ObjectText));
 	printf("Object name found by Id: %s\n", ObjectText);

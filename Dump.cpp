@@ -360,8 +360,8 @@ UINT64 Dump::GetChildPropertiesCastFlagByChildProperties(UINT64 Object)
 	if (Object == 0)
 		return 0;
 
-	UINT64 PPropertiesFlag = ReadBySystem<UINT64>(ProcessHandle, Object + Offsets::UObject::FField::Class);
-	UINT64 PropertiesFlag = ReadBySystem<UINT64>(ProcessHandle, PPropertiesFlag + Offsets::UObject::FField::FFieldClass::CastFlag);
+	UINT64 PPropertiesFlag = ReadBySystem<UINT64>(ProcessHandle, Object + Offsets::UObject::FField::ClassPrivate);
+	UINT64 PropertiesFlag = ReadBySystem<UINT64>(ProcessHandle, PPropertiesFlag + Offsets::UObject::FField::FFieldClass::CastFlags);
 
 	return PropertiesFlag;
 }

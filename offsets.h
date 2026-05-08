@@ -89,7 +89,8 @@ namespace Offsets
 
 	namespace UObject
 	{
-		constexpr uint64 Class = 0x10;
+		constexpr uint64 Class = 0x10; //The type of Class is UClass
+
 		constexpr uint64 SuperStruct = 0x40;
 		constexpr uint64 Name = 0x18; // Through this offset you can find the object's Id, which can be used with GetName to find the object's name
 		constexpr uint64 Size = 0x18; // This needs adjustment based on the actual situation. Size is the element size in GObjects array. Use it to find the next object's address.
@@ -102,10 +103,10 @@ namespace Offsets
 		constexpr uint64 ChildProperties = 0x50; // The type of ChildProperties is FField, which is a linked list. +0x20 points to the next data member, +0x28 is the FFieldClass type address, and +0x40 contains data member properties.
 		namespace FField
 		{
-			constexpr uint64 Class = 0x8;
+			constexpr uint64 ClassPrivate = 0x8; // The type of ClassPrivate is FFieldClass
 			namespace FFieldClass
 			{
-				constexpr uint64 CastFlag = 0x10;
+				constexpr uint64 CastFlags = 0x10;
 			}
 
 			constexpr uint64 Next = 0x20;

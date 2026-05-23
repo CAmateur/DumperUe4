@@ -13,21 +13,15 @@ public:
 	~Dump();
 
 	int Init();
-	VOID GetName(UINT32 Id, char* Buffer, size_t Size);
+	size_t GetName(UINT32 Id, char* Buffer, size_t Size);
 
 	VOID BeginDump();
-
-	string DumpObject(UINT64 Object);
 
 	VOID DumpClass(UINT64 Object);
 
 	UINT64 GetObjectByIndex(UINT32 Index);
 
 	UINT64 GetObjectById(UINT32 Id);
-
-	UINT64 GetObjectByName(string Name);
-
-	UINT64 GetObjectByName2(string Name);
 
 
 	string GetNameByObject(UINT64 Object);
@@ -36,8 +30,8 @@ public:
 
 	UINT64 GetModouleBaseAddress(HANDLE Pid, string ModuleName);
 
-
-	//parmeter: Object
+	uint8_t DeriveKey(uint8_t g);
+	void DecryptBuffer(char* buffer, int length);
 	
     UINT64 GetObjectClass(UINT64 Object);
 
@@ -52,9 +46,7 @@ public:
 	UINT64 GetChildPropertiesEnumByChildProperties(UINT64 Object);
 	UINT64 GetChildPropertiesCastFlagByChildProperties(UINT64 Object);
 	UINT64 GetChildPropertiesEnum(UINT64 Object);
-	BOOLEAN FileterObjects(UINT64 Object);
 	UINT64 GetNextChildProperties(UINT64 Object);
-
 	string GetEnumByCastFlag(UINT64 Property, UINT64 PropertiesObjectCastFlag);
 
 	template <typename Type>
@@ -68,7 +60,7 @@ public:
 		return Result;
 	}
 
-	// ����תʮ�������ַ�����ͨ�ð棩
+
 	template <typename T>
 	std::string to_hex(T num) {
 		std::stringstream ss;

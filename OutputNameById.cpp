@@ -20,13 +20,12 @@ int main()
 		scanf_s("%p", &Id);
 		printf("Entered Id: %p\n", Id);
 
-		Dumper.GetName(Id, ObjectText, sizeof(ObjectText));
+		size_t Len  = Dumper.GetName(Id, ObjectText, sizeof(ObjectText));
 
 		printf("Object Name: %s\n", ObjectText);
-
-		UINT64 Object = Dumper.GetObjectById(Id);
-		printf("Object Address: %p\n", Object);
-
+		
+		Dumper.DecryptBuffer(ObjectText, Len);
+		printf("Decrypted object name: %s\n", ObjectText);
 	}
 
 

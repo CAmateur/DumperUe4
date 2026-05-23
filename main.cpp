@@ -1,6 +1,9 @@
 ﻿#include <thread>
 #include "Dump.h"
 
+
+
+
 int main()
 {
 	Dump Dumper;
@@ -11,8 +14,8 @@ int main()
 		printf("Dumper Init Faild %d\n", Result);
 
 	char ObjectText[0x200] = { 0 };
-	UINT64 Id = 0x4E35A;
-	//UINT64 Id = 0x001E475;
+	UINT32 Id = 0xE3;
+	//UINT32 Id = 0x001E475;
 	Dumper.GetName(Id, ObjectText, sizeof(ObjectText));
 	printf("Object name found by Id: %s\n", ObjectText);
 
@@ -58,7 +61,6 @@ int main()
 
 
 	system("pause");
-	//printf("ActorTickFunction Object��%p\n", Dumper.GetObjectByName2("ActorTickFunction"));
 	Dumper.BeginDump();
 	system("pause");
 }

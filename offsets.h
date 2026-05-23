@@ -83,9 +83,13 @@ enum class EClassCastFlags : uint64
 namespace Offsets
 {
 
-	constexpr uint64 GNames = 0x4AAB6C0;
-	constexpr uint64 GWorld = 0x4C2F3B0;
-	constexpr uint64 GObjects = 0x4AE7A10;
+	constexpr uint64 GNames = 0x8BC3A40;
+	constexpr uint64 GWorld = 0x8779F38;
+	constexpr uint64 GObjects = 0x8D06CE8;
+	constexpr uint64  MaxElements = 0x0010;
+	constexpr uint64  NumElements = 0x0014;
+	constexpr uint64  MaxChunks = 0x0018;
+	constexpr uint64  NumChunks = 0x001C;
 
 	namespace UObject
 	{
@@ -113,7 +117,7 @@ namespace Offsets
 			constexpr uint64 Name = 0x28;
 			constexpr uint64 EnumProperty = 0x78;
 			constexpr uint64 BoolOrUint8Mask = 0x78;
-
+			constexpr uint64 FieldMask = 0x7B;
 
 			constexpr uint64 ElementSize = 0x3C;
 			constexpr uint64 Offset_Internal = 0x4C;

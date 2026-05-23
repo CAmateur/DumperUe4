@@ -20,15 +20,9 @@ Dump::~Dump()
 
 int Dump::Init()
 {
-	//HMODULE  CeAssistantV2 = LoadLibraryA("CeAssistantV2.dll");
-
-	//if (!CeAssistantV2)
-	//	return 1;
-
-	//Sleep(5000);
 
 	HWND GamehWnd = FindWindowA("UnrealWindow", nullptr);
-	//HWND GamehWnd = FindWindowA("Qt5QWindowIcon", nullptr);
+
 	if (!GamehWnd)
 		return 2;
 
@@ -42,14 +36,49 @@ int Dump::Init()
 	if (!ProcessHandle)
 		return 4;
 
-	GameBaseAddress = GetModouleBaseAddress(Pid, "OAR-Win64-Shipping.exe");
+	GameBaseAddress = GetModouleBaseAddress(Pid, "NRC-Win64-Shipping.exe");
 
 	if (!GameBaseAddress)
 		return 5;
 
 	return 0;
 }
-VOID Dump::GetName(UINT32 Id, char* Buffer, size_t Size)
+
+
+uint8_t Dump::DeriveKey(uint8_t g)
+{
+	uint8_t v;
+
+	v = (g >> 3) & 4;       // shr dl,3 ; and dl,4
+	v ^= g;                  // xor dl, [global]
+
+	uint8_t tmp = v;
+	tmp = (tmp & 4) << 3;    // and cl,4 ; shl cl,3
+	tmp ^= v;                // xor cl,dl
+
+	uint8_t key = tmp;
+	key = (key >> 3) & 4;    // shr al,3 ; and al,4
+	key ^= tmp;              // xor al,cl
+
+	return key;
+}
+
+void Dump::DecryptBuffer(char* buffer, int length)
+{
+	if (length <= 0)
+		return;
+
+	uint8_t g = ReadBySystem<uint8_t>(ProcessHandle, GameBaseAddress + 0x8CDA19C);
+	uint8_t key = DeriveKey(g);
+
+	for (int i = 0; i < length; i++)
+	{
+		buffer[i] ^= key ^ 0x28;
+	}
+}
+
+
+size_t Dump::GetName(UINT32 Id, char* Buffer, size_t Size)
 {
 	UINT64 GName = GameBaseAddress + Offsets::GNames;
 
@@ -59,18 +88,21 @@ VOID Dump::GetName(UINT32 Id, char* Buffer, size_t Size)
 
 	UINT64 TempStringAddress = ReadBySystem<UINT64>(ProcessHandle, N);
 
-	if(TempStringAddress == 0)
-		return;
+	if (TempStringAddress == 0)
+		return 0;
 
 	UWORD TempLength = ReadBySystem<UWORD>(ProcessHandle, TempStringAddress + Offsets) >> 6;
 
-	if(TempLength == 0)
-		return;
+	if (TempLength == 0)
+		return	0;
 
 	SIZE_T NumberOfRead = 0;
 
 	ReadProcessMemory(ProcessHandle, (PVOID)(TempStringAddress + Offsets + 2), (PVOID)Buffer, TempLength, &NumberOfRead);
 
+	DecryptBuffer(Buffer, TempLength);
+
+	return TempLength;
 }
 //VOID Dump::GetName(uint32 Id, char* Buffer, size_t Size)
 //{
@@ -97,62 +129,93 @@ VOID Dump::GetName(UINT32 Id, char* Buffer, size_t Size)
 //}
 
 
-string Dump::DumpObject(UINT64 Object)
-{
-	if (Object == 0)
-		return string();
-
-	string Name = GetNameByObject(Object);
-	if (Name == "" || Name == "None")
-		return string();
-
-	for (UINT64 OuterPrivate = GetOuterPrivate(Object); OuterPrivate; OuterPrivate = GetOuterPrivate(OuterPrivate))
-	{
-		Name = GetNameByObject(OuterPrivate) + "." + Name;
-	}
-	UINT64 ObjectType = GetObjectClass(Object);
-	string ClassName = GetNameByObject(ObjectType);
-
-	return ClassName + "\t " + Name;
-}
-
 
 
 UINT64 Dump::GetObjectByIndex(UINT32 Index)
 {
-	UINT64 PChunks = ReadBySystem<UINT64>(ProcessHandle, GameBaseAddress + Offsets::GObjects);
-	UINT64 Chunks = ReadBySystem<UINT64>(ProcessHandle, PChunks);
-	UINT64 Object = ReadBySystem<UINT64>(ProcessHandle, Chunks + Index * Offsets::UObject::Size);
+	//UINT64 PChunks = ReadBySystem<UINT64>(ProcessHandle, GameBaseAddress + Offsets::GObjects);
+	//UINT64 Chunks = ReadBySystem<UINT64>(ProcessHandle, PChunks);
+	//UINT64 Object = ReadBySystem<UINT64>(ProcessHandle, Chunks + Index * Offsets::UObject::Size);
+
+
+	//UINT64 ObjectsNum = ReadBySystem<UINT64>(ProcessHandle, GameBaseAddress + Offsets::GObjects + Offsets::NumElements);
+
+//inline class UObject* GetByIndex(const int32 Index) const
+//{
+//	const int32 ChunkIndex = Index / ElementsPerChunk;
+//	const int32 InChunkIdx = Index % ElementsPerChunk;
+
+//	if (Index < 0 || ChunkIndex >= NumChunks || Index >= NumElements)
+//		return nullptr;
+
+//	FUObjectItem* ChunkPtr = GetDecrytedObjPtr()[ChunkIndex];
+//	if (!ChunkPtr) return nullptr;
+
+//	return ChunkPtr[InChunkIdx].Object;
+//}
+
+	UINT32 ElementsPerChunk = 0x10000;
+	UINT32 NumChunks = ReadBySystem<UINT32>(ProcessHandle, GameBaseAddress + Offsets::GObjects + Offsets::NumChunks);
+	UINT32 NumElements = ReadBySystem<UINT32>(ProcessHandle, GameBaseAddress + Offsets::GObjects + Offsets::NumElements);
+	UINT32 ChunkIndex = Index / ElementsPerChunk;
+	UINT32 InChunkIdx = Index % ElementsPerChunk;
+
+	if (Index < 0 || ChunkIndex >= NumChunks || Index >= NumElements)
+		return 0;
+
+	UINT64 PChunkPtr = ReadBySystem<UINT64>(ProcessHandle, GameBaseAddress + Offsets::GObjects) + ChunkIndex * 8;
+	if (!PChunkPtr) return 0;
+
+	UINT64 ChunkPtr = ReadBySystem<UINT64>(ProcessHandle, PChunkPtr);
+	if (!ChunkPtr) return 0;
+	UINT64 Object = ReadBySystem<UINT64>(ProcessHandle, ChunkPtr + InChunkIdx * Offsets::UObject::Size);
+
 	return Object;
 }
 
 UINT64 Dump::GetObjectById(UINT32 Id)
 {
-	UINT64 PGObject = ReadBySystem<UINT64>(ProcessHandle, GameBaseAddress + Offsets::GObjects);
-	UINT64 Chunks = ReadBySystem<UINT64>(ProcessHandle, PGObject);
-	UINT64 Index = 0;
-	UINT64 Object = 0;
-	BOOLEAN IsCycle = TRUE;
-	UINT64 ObjectIsNullCount = 0;
-	do
+	UINT32 ObjectsNum = ReadBySystem<UINT32>(ProcessHandle, GameBaseAddress + Offsets::GObjects + Offsets::NumElements);
+
+	for (int i = 0; i < ObjectsNum; ++i)
 	{
-		Object = ReadBySystem<UINT64>(ProcessHandle, Chunks + Index * Offsets::UObject::Size);
-		UINT32 CurrentId = GetIdByObject(Object);
+		UINT64 Object = GetObjectByIndex(i);
+
+		if (!Object)
+			continue;
+
+		UINT32 CurrentId = ReadBySystem<UINT32>(ProcessHandle, Object + Offsets::UObject::Name);
 		if (CurrentId == Id)
 		{
 			return Object;
 		}
-		Index++;
-
-		if (!Object)
-			ObjectIsNullCount++;
-
-		if (ObjectIsNullCount > 5)
-			IsCycle = FALSE;
-
-	} while (IsCycle);
+	}
 
 	return 0;
+}
+
+VOID Dump::BeginDump()
+{
+	size_t DumpCount = 0;
+	UINT32 ObjectsNum = ReadBySystem<UINT32>(ProcessHandle, GameBaseAddress + Offsets::GObjects + Offsets::NumElements);
+	for (size_t i = 0; i < ObjectsNum; i++)
+	{
+
+		UINT64 Object = GetObjectByIndex(i);
+		if (Object == 0)
+			continue;
+
+		printf("DumpCount:%d Index:%d\n", DumpCount, i);
+
+		//		if (FileterObjects(Object))
+		{
+			DumpClass(Object);
+			DumpCount++;
+
+		}
+
+	}
+	fclose(File);
 }
 
 string Dump::GetNameByObject(UINT64 Object)
@@ -221,8 +284,8 @@ UINT32 Dump::GetIdByObject(UINT64 Object)
 UINT64 Dump::GetModouleBaseAddress(HANDLE Pid, string ModuleName)
 {
 	UINT64 BaseAddr = 0;
-	
-    HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, (DWORD)Pid);
+
+	HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, (DWORD)Pid);
 	if (hSnapshot == INVALID_HANDLE_VALUE)
 	{
 		printf("Error code: %d", GetLastError());
@@ -260,64 +323,6 @@ UINT64 Dump::GetObjectClass(UINT64 Object)
 	return ObjectClass;
 }
 
-UINT64 Dump::GetObjectByName2(string Name)
-{
-	for (size_t i = 0; i < 2000000; i++)
-	{
-		UINT64 Object = GetObjectByIndex(i);
-		if (Object == 0)
-			continue;
-
-		if (GetNameByObject(Object) == Name)
-		{
-			return Object;
-		}
-
-	}
-	return 0;
-}
-
-UINT64 Dump::GetObjectByName(string Name)
-{
-	for (size_t i = 0; i < 2000000; i++)
-	{
-		UINT64 Object = GetObjectByIndex(i);
-		if (Object == 0)
-			continue;
-
-		if (DumpObject(Object) == Name)
-		{
-			return Object;
-		}
-
-	}
-	return 0;
-}
-
-
-
-BOOLEAN Dump::FileterObjects(UINT64 Object)
-{
-	if (Object == 0)
-		return FALSE;
-
-	// Found Class\'s base string, all Class objects inherit from CoreUObject.Class
-	static UINT64 ObjectClassStr = GetObjectByName("Class	 CoreUObject.Class");
-
-	for (UINT64 ObjectClass = GetObjectClass(Object);
-		ObjectClass;
-		ObjectClass = GetSuperStruct(ObjectClass))
-	{
-		if (ObjectClass == ObjectClassStr)
-		{
-			// Inherits from Class, indicating this is our target object
-					return TRUE;
-		}
-
-	}
-
-	return FALSE;
-}
 
 UINT64 Dump::GetSuperStruct(UINT64 Object)
 {
@@ -390,7 +395,7 @@ std::string GetValidClassName(const std::string& ClassName) {
 		ClassName.find("Projectile") != std::string::npos) {
 
 		if (ClassName.find("Component") == std::string::npos &&
-			ClassName.find("Widget") == std::string::npos && 
+			ClassName.find("Widget") == std::string::npos &&
 			ClassName.find("Settings") == std::string::npos) {
 			return "A" + ClassName;
 		}
@@ -422,7 +427,7 @@ string Dump::GetEnumByCastFlag(UINT64 Property, UINT64 PropertiesObjectCastFlag)
 			return "uint8";
 		return "bool";
 	}
-	
+
 	// Core Upgrade 3: Handle UE string types, automatically inject "class " prefix to keep output format consistent with Dumper-7.
 	if (PropertiesObjectCastFlag & (UINT64)EClassCastFlags::NameProperty) return "class FName";
 	if (PropertiesObjectCastFlag & (UINT64)EClassCastFlags::StrProperty) return "class FString";
@@ -587,7 +592,7 @@ VOID Dump::DumpClass(UINT64 Object)
 		string PropName = GetNameByChildProperties(ChildProperties);
 		if (PropertiesObjectCastFlag & (UINT64)EClassCastFlags::BoolProperty)
 		{
-			uint8 FieldMask = ReadBySystem<uint8>(ProcessHandle, ChildProperties + 0x7B);
+			uint8 FieldMask = ReadBySystem<uint8>(ProcessHandle, ChildProperties + Offsets::UObject::FField::FieldMask);
 			if (FieldMask != 0xFF && FieldMask != 0)
 			{
 				LineStr += PropName + " : 1;";
@@ -625,25 +630,3 @@ VOID Dump::DumpClass(UINT64 Object)
 
 
 
-VOID Dump::BeginDump()
-{
-	size_t DumpCount = 0;
-	for (size_t i = 0; i < 1000000; i++)
-	{
-
-		UINT64 Object = GetObjectByIndex(i);
-		if (Object == 0)
-			continue;
-
-		printf("DumpCount:%d Index:%d\n", DumpCount, i);
-
-		//		if (FileterObjects(Object))
-		{
-			DumpClass(Object);
-			DumpCount++;
-
-		}
-
-	}
-	fclose(File);
-}
